@@ -22,7 +22,7 @@ Usage
 Syntax is subject to change. Run `python2 ./snapfeed.py -h` for the latest 
 syntax.
 
-``
+```
   snapfeed.py [-d <delay>] -u <username> [-p <password>] --gmail=<gmail> --gpasswd=<gpasswd> -U <base-url> -f <feed> <path> [<whitelist>...]
 
 Options:
@@ -34,7 +34,7 @@ Options:
      --gpasswd=<gpasswd>        Gmail password
   -U --base-url=<base-url>      Base url, e.g. http://localhost/snaps/
   -f --feed=<feed>              Feed filename, e.g. rss.xml.
-``
+```
 
 Note that you must provide a webserver where `<path>` is available at 
 `<base-url>`. This information is used to generate RSS feeds. The feed file
