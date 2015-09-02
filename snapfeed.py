@@ -63,11 +63,13 @@ def check_snaps(username, password, gmail, gpasswd, path, feed, base_url, whitel
                 if snap['id'].split('~')[0] in whitelist:
                     entry = feed.add_entry()
                     entry.id(urlparse.urljoin(base_url, filename))
+                    entry.link(href=urlparse.urljoin(base_url, filename))
                     entry.title(filename)
 
             else:
                 entry = feed.add_entry()
                 entry.id(urlparse.urljoin(base_url, filename))
+                entry.link(href=urlparse.urljoin(base_url, filename))
                 entry.title(filename)
 
 
