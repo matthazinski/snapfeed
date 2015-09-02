@@ -115,14 +115,12 @@ def main():
     feed.language('en')
     feed.description('Snapchat media')
     rss = feed.rss_str(pretty=True)
-    print(rss) 
 
        
     # Every N minutes, fetch new snaps and generate a new feed
     while True:
         check_snaps(username, password, gmail, gpasswd, path, feed, base_url, whitelist)
         rss = feed.rss_str(pretty=True)
-        print(rss)
         feed.rss_file(os.path.join(path, feed_filename))
         time.sleep(delay*60)
     
