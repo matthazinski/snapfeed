@@ -3,7 +3,7 @@
 """Snapchat to RSS gateway
 
 Usage:
-  snapfeed.py [-d <delay>] -u <username> [-p <password>] --gmail=<gmail> --gpasswd=<gpasswd> -U <base-url> -f <feed> <path> [<whitelist>...]
+  snapfeed.py [-d <delay>] -u <username> [-p <password>] --gmail=<gmail> --gpasswd=<gpasswd> -U <base-url> <path> [<whitelist>...]
 
 Options:
   -d --delay=<delay>            Delay in minutes to wait before re-downloading
@@ -13,11 +13,10 @@ Options:
      --gmail=<gmail>            Gmail address
      --gpasswd=<gpasswd>        Gmail password
   -U --base-url=<base-url>      Base url, e.g. http://localhost/snaps/
-  -f --feed=<feed>              Feed filename, e.g. rss.xml.
 
 """
 from __future__ import print_function
-import os.path
+import os.path, os
 import sys
 import urlparse
 import time
@@ -30,7 +29,7 @@ from zipfile import is_zipfile
 from requests.exceptions import HTTPError
 
 
-def check_snaps(username, password, gmail, gpasswd, path, feed, base_url, whitelist):
+def check_snaps(username, password, gmail, gpasswd, path, whitelist, base_url):
     # Download all our snaps and add items to our feed
     s = Snapchat()
     try:
@@ -51,32 +50,66 @@ def check_snaps(username, password, gmail, gpasswd, path, feed, base_url, whitel
                                     snap['media_iv'])
             if data is None:
                 continue
+          
+            # in_whitelist determines whether we should publish this story
+            # or just download it. In this case, chmod so nginx can read.
+            in_whitelist = False
+
+            if whitelist:
+                if snap['id'].split('~')[0] in whitelist:
+                    in_whitelist = True
+            else:
+                in_whitelist = True
 
             with open(abspath, 'wb') as f:
+                # Let webserver read it if we publish it
+                if not in_whitelist:
+                    os.chmod(abspath, 0o600)
+                else:
+                    os.chmod(abspath, 0o644)
+
                 f.write(data)
                 print('Saved: {0}'.format(abspath))
 
             if is_zipfile(abspath):
                 unzip_snap_mp4(abspath, quiet=False)
 
-            if whitelist:
-                if snap['id'].split('~')[0] in whitelist:
-                    entry = feed.add_entry()
-                    entry.id(urlparse.urljoin(base_url, filename))
-                    entry.link(href=urlparse.urljoin(base_url, filename))
-                    entry.title(filename)
-
-            else:
-                entry = feed.add_entry()
-                entry.id(urlparse.urljoin(base_url, filename))
-                entry.link(href=urlparse.urljoin(base_url, filename))
-                entry.title(filename)
-
 
     except HTTPError:
         print('Casper auth server is presumably overloaded right now.')
         return
 
+
+def gen_feed(user, base_url, path):
+    # Create feed
+    feed = FeedGenerator()
+    feed.id(urlparse.urljoin(base_url, user + '.xml'))
+    feed.title('Snapchat story for ' + user)
+    feed.link( href=urlparse.urljoin(base_url, user + '.xml'), rel='self' )
+    feed.language('en')
+    feed.description('Snapchat media')
+
+
+    # Iterate through files in path, sort by unix timestamp (newest first), then add to feed
+    files = sorted(os.listdir(path), reverse=True)
+
+    for filename in files:
+        split = filename.split('~')
+
+        if split[0] != user:
+            continue
+        
+        if os.path.splitext(filename)[1] in ['.mp4', '.jpg']:
+            entry = feed.add_entry()
+            entry.id(urlparse.urljoin(base_url, filename))
+            entry.link(href=urlparse.urljoin(base_url, filename))
+            entry.title(filename)
+
+    
+    # Write feed to disk
+    feed.rss_file(os.path.join(path, user + '.xml'))
+    print('Generated {0}.xml'.format(user))
+    
 
 def main():
     arguments = docopt(__doc__)
@@ -92,7 +125,6 @@ def main():
     else:
         gpasswd = arguments['--gpasswd']
 
-
     if arguments['--delay'] is None:
         delay = 60
     else:
@@ -100,28 +132,21 @@ def main():
 
     path = arguments['<path>']
     base_url = arguments['--base-url']
-    feed_filename = arguments['--feed']
+
+
     whitelist = arguments['<whitelist>']
 
     if not os.path.isdir(path):
         print('No such directory: {0}'.format(arguments['<path>']))
         sys.exit(1)
-
-    # Create feed
-    feed = FeedGenerator()
-    feed.id(urlparse.urljoin(base_url, feed_filename))
-    feed.title('Snapchat')
-    feed.link( href=urlparse.urljoin(base_url, feed_filename), rel='self' )
-    feed.language('en')
-    feed.description('Snapchat media')
-    rss = feed.rss_str(pretty=True)
-
        
     # Every N minutes, fetch new snaps and generate a new feed
     while True:
-        check_snaps(username, password, gmail, gpasswd, path, feed, base_url, whitelist)
-        rss = feed.rss_str(pretty=True)
-        feed.rss_file(os.path.join(path, feed_filename))
+        check_snaps(username, password, gmail, gpasswd, path, whitelist, base_url)
+
+        for u in whitelist:
+            gen_feed(u, base_url, path)
+        
         time.sleep(delay*60)
     
 
