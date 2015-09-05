@@ -101,7 +101,10 @@ def gen_feed(user, base_url, path):
     
     # Write feed to disk
     feed.rss_file(os.path.join(path, user + '.xml'))
-    print('Generated {0}.xml'.format(user))
+    date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+
+    print('{0}  Regenerated {1}'.format(date, urlparse.urljoin(base_url, 
+                                                               user + '.xml')))
     
 
 def main():
