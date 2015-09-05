@@ -30,6 +30,7 @@ from snapy.utils import unzip_snap_mp4
 from zipfile import is_zipfile
 from requests.exceptions import HTTPError
 from jinja2 import Environment, PackageLoader
+from pprint import pprint
 
 def check_snaps(s, path, whitelist, base_url):
     # Download all our snaps and add items to our feed
@@ -221,8 +222,8 @@ def main():
     whitelist = arguments['<whitelist>']
     path = arguments['<path>']
     base_url = arguments['--base-url']
-
-    if '--regenerate-html' in arguments:
+    
+    if arguments['--regenerate-html']:
         print('Regenerating HTML!')
         for user in whitelist:
             gen_html_archives(user, base_url, path)
