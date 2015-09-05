@@ -19,7 +19,7 @@ from __future__ import print_function
 import os.path, os
 import sys
 import urlparse
-import time
+import time, datetime
 
 from docopt import docopt
 from feedgen.feed import FeedGenerator
@@ -69,7 +69,10 @@ def check_snaps(username, password, gmail, gpasswd, path, whitelist, base_url):
                     os.chmod(abspath, 0o644)
 
                 f.write(data)
-                print('Saved: {0}'.format(abspath))
+
+                date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+                print('{0}  Saved {1}'.format(date, urlparse.urljoin(base_url, 
+                                                                     filename)))
 
             if is_zipfile(abspath):
                 unzip_snap_mp4(abspath, quiet=False)
