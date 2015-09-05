@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>{{ user }}'s Snapchat story</title>
+</head>
+<body>
+    {% for f,g in files %}
+        {% if g %}
+            <video controls>
+                <source src="{{ f }}">
+            </video>
+        {% else %}
+            <img src="{{ f }}">
+        {% endif %}
+        <br>
+    {% endfor %}
+
+    <p><a href="{{ prevLink }}">Prev</a>    <a href="{{ nextLink }}">Next</a>
+
+</body>
+</html>

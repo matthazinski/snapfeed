@@ -4,7 +4,8 @@
 
 Usage:
   snapfeed.py [-d <delay>] -u <username> [-p <password> | -a <auth_token>] --gmail=<gmail> --gpasswd=<gpasswd> -U <base-url> <path> [<whitelist>...]
-
+  snapfeed.py -r -U <base-url> <path> [<whitelist>...]
+  
 Options:
   -d --delay=<delay>            Delay in minutes to wait before re-downloading
   -h --help                     Show usage
@@ -14,6 +15,7 @@ Options:
      --gpasswd=<gpasswd>        Gmail password
   -U --base-url=<base-url>      Base url, e.g. http://localhost/snaps/
   -a --auth-token=<auth_token>  Auth token from Snapchat session
+  -r --regenerate-html          Regenerate all HTML
 """
 from __future__ import print_function
 import os.path, os
@@ -27,7 +29,8 @@ from snapy import get_file_extension, Snapchat
 from snapy.utils import unzip_snap_mp4
 from zipfile import is_zipfile
 from requests.exceptions import HTTPError
-
+from jinja2 import Environment, PackageLoader
+from pprint import pprint
 
 def check_snaps(s, path, whitelist, base_url):
     # Download all our snaps and add items to our feed
@@ -73,6 +76,111 @@ def check_snaps(s, path, whitelist, base_url):
             unzip_snap_mp4(abspath, quiet=False)
 
 
+def gen_html_page(user, dt, base_url, path):
+    """Generate an HTML page for a given datetime and user.
+    Note that the datetime must be the exact start of the day.
+    """
+
+    nextDay = dt + datetime.timedelta(days=1)
+    prevDay = dt - datetime.timedelta(days=1)
+
+    startMs = (dt - datetime.datetime(1970,1,1)).total_seconds() * 1000
+    endMs = (nextDay - datetime.datetime(1970,1,1)).total_seconds() * 1000
+
+    # Look for all files matching user, date, sort latest->earlist
+    allFiles = sorted(os.listdir(path), reverse=True)
+    files = []
+
+    for f in allFiles:
+        splitFile = f.split('~')
+
+        # Match on user
+        if splitFile[0] != user:
+            continue
+
+        splitExt = os.path.splitext(splitFile[1])
+
+        # We also have _overlay.png and .zip and .xml here
+        if splitExt[1] not in ['.mp4', '.jpg']:
+            continue
+
+
+        # Check if date in range
+        snapDate = int(splitExt[0])
+
+        if snapDate > endMs:
+            continue
+
+        if snapDate < startMs:
+            continue
+
+        isVideo = (splitExt[1] == '.mp4')
+        tup = (urlparse.urljoin(base_url, f), isVideo)
+        files.append(tup)
+
+    # mkdir -p path/archive/user/yyyy/MM/
+    directory = os.path.join(path, 'archive', user, str(dt.year), str(dt.month))
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+    # Get previous day and next day links
+    prevLink = urlparse.urljoin(base_url, os.path.join('archive', user, str(prevDay.year), str(prevDay.month), str(prevDay.day) + '.html'))
+    nextLink = urlparse.urljoin(base_url, os.path.join('archive', user, str(nextDay.year), str(nextDay.month), str(nextDay.day) + '.html'))
+    
+
+    # Generate from jinja template, pass media list and prev/next day
+    env = Environment(loader=PackageLoader('snapfeed', 'templates'))
+    template = env.get_template('day.html')
+    rendered = template.render(prevLink=prevLink, nextLink=nextLink, files=files, user=user)
+
+    with open(os.path.join(directory, str(dt.day) + ".html"), "wb") as fh:
+        fh.write(rendered)
+
+
+def gen_html_archives(user, base_url, path):
+    """Generate ALL html archives for a single user.
+    This should only be run once, then run gen_html_page() for the current
+    day in the main() loop.
+    """
+    # get first and last date
+    files = sorted(os.listdir(path))
+    firstTs = 0
+
+    # Loop through the sorted list until we find the first timestamp
+    # orresponding to our username
+    for filename in files:
+        split = filename.split('~')
+
+        if split[0] != user:
+            continue
+        
+        if os.path.splitext(filename)[1] in ['.mp4', '.jpg']:
+            ts = int(os.path.splitext(filename.split('~')[1])[0])
+
+            if not firstTs:
+                firstTs = ts
+            else:
+                break
+
+    # for first..last date, generate pages
+    todayDate = datetime.date.today()
+
+    # The beginning of today (midnight)
+    todayDt = datetime.datetime(todayDate.year, todayDate.month, todayDate.day, 0,0,0)
+
+    firstDtTs = datetime.datetime.fromtimestamp(firstTs/1000)
+
+    # Initially, the beginning of the first day in which there are story media
+    loopDt = datetime.datetime(firstDtTs.year, firstDtTs.month, firstDtTs.day, 0, 0)
+    
+    while loopDt <= todayDt:
+        date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+        loopDtStr = loopDt.strftime("%Y-%m-%d %H:%M")
+        print('{0}  Generating HTML for {1}'.format(date, loopDtStr))
+        gen_html_page(user, loopDt, base_url, path)    
+        loopDt = loopDt + datetime.timedelta(days=1)
+
+
 def gen_feed(user, base_url, path):
     # Create feed
     feed = FeedGenerator()
@@ -109,6 +217,19 @@ def gen_feed(user, base_url, path):
 
 def main():
     arguments = docopt(__doc__)
+
+    # These are common to everything
+    whitelist = arguments['<whitelist>']
+    path = arguments['<path>']
+    base_url = arguments['--base-url']
+    
+    if arguments['--regenerate-html']:
+        print('Regenerating HTML!')
+        for user in whitelist:
+            gen_html_archives(user, base_url, path)
+        sys.exit(1)
+
+    # Arguments after this are specific to logging in
     username = arguments['--username']
     gmail = arguments['--gmail']
 
@@ -122,11 +243,8 @@ def main():
     else:
         delay = int(arguments['--delay'])
 
-    path = arguments['<path>']
-    base_url = arguments['--base-url']
     auth_token = arguments['--auth-token']
 
-    whitelist = arguments['<whitelist>']
 
     if not os.path.isdir(path):
         print('No such directory: {0}'.format(arguments['<path>']))
@@ -154,6 +272,12 @@ def main():
 
         for u in whitelist:
             gen_feed(u, base_url, path)
+            todayDate = datetime.date.today()
+
+            # The beginning of today (midnight)
+            todayDt = datetime.datetime(todayDate.year, todayDate.month, todayDate.day, 0,0,0)
+            gen_html_page(u, todayDt, base_url, path)
+
         
         time.sleep(delay*60)
     
