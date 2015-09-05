@@ -162,6 +162,12 @@ def gen_html_archives(user, base_url, path):
             else:
                 break
 
+
+    if not firstTs:
+        # Timestamp is zero because there were no media files found for 
+        # the given username.
+        return
+
     # for first..last date, generate pages
     todayDate = datetime.date.today()
 
