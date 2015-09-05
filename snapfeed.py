@@ -3,7 +3,7 @@
 """Snapchat to RSS gateway
 
 Usage:
-  snapfeed.py [-d <delay>] -u <username> [-p <password>] --gmail=<gmail> --gpasswd=<gpasswd> -U <base-url> <path> [<whitelist>...]
+  snapfeed.py [-d <delay>] -u <username> [-p <password> | -a <auth_token>] --gmail=<gmail> --gpasswd=<gpasswd> -U <base-url> <path> [<whitelist>...]
 
 Options:
   -d --delay=<delay>            Delay in minutes to wait before re-downloading
@@ -13,7 +13,7 @@ Options:
      --gmail=<gmail>            Gmail address
      --gpasswd=<gpasswd>        Gmail password
   -U --base-url=<base-url>      Base url, e.g. http://localhost/snaps/
-
+  -a --auth-token=<auth_token>  Auth token from Snapchat session
 """
 from __future__ import print_function
 import os.path, os
@@ -29,58 +29,48 @@ from zipfile import is_zipfile
 from requests.exceptions import HTTPError
 
 
-def check_snaps(username, password, gmail, gpasswd, path, whitelist, base_url):
+def check_snaps(s, path, whitelist, base_url):
     # Download all our snaps and add items to our feed
-    s = Snapchat()
-    try:
-        if not s.login(username, password, gmail, gpasswd)['updates_response'].get('logged'):
-            print('Invalid username or password')
-            return
 
-        for snap in s.get_friend_stories():
-            filename = '{0}.{1}'.format(snap['id'],
-                                        get_file_extension(snap['media_type']))
-            abspath = os.path.abspath(os.path.join(path, filename))
+    for snap in s.get_friend_stories():
+        filename = '{0}.{1}'.format(snap['id'],
+                                    get_file_extension(snap['media_type']))
+        abspath = os.path.abspath(os.path.join(path, filename))
 
-            if os.path.isfile(abspath):
-                continue
+        if os.path.isfile(abspath):
+            continue
 
-            data = s.get_story_blob(snap['media_id'],
-                                    snap['media_key'],
-                                    snap['media_iv'])
-            if data is None:
-                continue
-          
-            # in_whitelist determines whether we should publish this story
-            # or just download it. In this case, chmod so nginx can read.
-            in_whitelist = False
+        data = s.get_story_blob(snap['media_id'],
+                                snap['media_key'],
+                                snap['media_iv'])
+        if data is None:
+            continue
+        
+        # in_whitelist determines whether we should publish this story
+        # or just download it. In this case, chmod so nginx can read.
+        in_whitelist = False
 
-            if whitelist:
-                if snap['id'].split('~')[0] in whitelist:
-                    in_whitelist = True
-            else:
+        if whitelist:
+            if snap['id'].split('~')[0] in whitelist:
                 in_whitelist = True
+        else:
+            in_whitelist = True
 
-            with open(abspath, 'wb') as f:
-                # Let webserver read it if we publish it
-                if not in_whitelist:
-                    os.chmod(abspath, 0o600)
-                else:
-                    os.chmod(abspath, 0o644)
+        with open(abspath, 'wb') as f:
+            # Let webserver read it if we publish it
+            if not in_whitelist:
+                os.chmod(abspath, 0o600)
+            else:
+                os.chmod(abspath, 0o644)
 
-                f.write(data)
+            f.write(data)
 
-                date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-                print('{0}  Saved {1}'.format(date, urlparse.urljoin(base_url, 
-                                                                     filename)))
+            date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+            print('{0}  Saved {1}'.format(date, urlparse.urljoin(base_url, 
+                                                                    filename)))
 
-            if is_zipfile(abspath):
-                unzip_snap_mp4(abspath, quiet=False)
-
-
-    except HTTPError:
-        print('Casper auth server is presumably overloaded right now.')
-        return
+        if is_zipfile(abspath):
+            unzip_snap_mp4(abspath, quiet=False)
 
 
 def gen_feed(user, base_url, path):
@@ -117,10 +107,6 @@ def gen_feed(user, base_url, path):
 def main():
     arguments = docopt(__doc__)
     username = arguments['--username']
-    if arguments['--password'] is None:
-        password = getpass('Password:')
-    else:
-        password = arguments['--password']
     gmail = arguments['--gmail']
 
     if arguments['--gpasswd'] is None:
@@ -135,17 +121,33 @@ def main():
 
     path = arguments['<path>']
     base_url = arguments['--base-url']
-
+    auth_token = arguments['--auth-token']
 
     whitelist = arguments['<whitelist>']
 
     if not os.path.isdir(path):
         print('No such directory: {0}'.format(arguments['<path>']))
         sys.exit(1)
+    
+    s = Snapchat()
+
+    if auth_token:
+        s.restore_token(username, auth_token, gmail, gpasswd)
+
+    else:
+        if arguments['--password'] is None:
+            password = getpass('Password:')
+        else:
+            password = arguments['--password']
+
+        if not s.login(username, password, gmail, gpasswd)['updates_response'].get('logged'):
+            print('Invalid username or password')
+            sys.exit(1)
+
        
     # Every N minutes, fetch new snaps and generate a new feed
     while True:
-        check_snaps(username, password, gmail, gpasswd, path, whitelist, base_url)
+        check_snaps(s, path, whitelist, base_url)
 
         for u in whitelist:
             gen_feed(u, base_url, path)
