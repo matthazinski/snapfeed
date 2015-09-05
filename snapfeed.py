@@ -4,7 +4,8 @@
 
 Usage:
   snapfeed.py [-d <delay>] -u <username> [-p <password> | -a <auth_token>] --gmail=<gmail> --gpasswd=<gpasswd> -U <base-url> <path> [<whitelist>...]
-
+  snapfeed.py -r -U <base-url> <path> [<whitelist>...]
+  
 Options:
   -d --delay=<delay>            Delay in minutes to wait before re-downloading
   -h --help                     Show usage
@@ -14,6 +15,7 @@ Options:
      --gpasswd=<gpasswd>        Gmail password
   -U --base-url=<base-url>      Base url, e.g. http://localhost/snaps/
   -a --auth-token=<auth_token>  Auth token from Snapchat session
+  -r --regenerate-html          Regenerate all HTML
 """
 from __future__ import print_function
 import os.path, os
@@ -115,11 +117,6 @@ def gen_html_page(user, dt, base_url, path):
         tup = (urlparse.urljoin(base_url, f), isVideo)
         files.append(tup)
 
-
-    # If none, return
-    if not files:
-        return
-
     # mkdir -p path/archive/user/yyyy/MM/
     directory = os.path.join(path, 'archive', user, str(dt.year), str(dt.month))
     if not os.path.exists(directory):
@@ -219,6 +216,19 @@ def gen_feed(user, base_url, path):
 
 def main():
     arguments = docopt(__doc__)
+
+    # These are common to everything
+    whitelist = arguments['<whitelist>']
+    path = arguments['<path>']
+    base_url = arguments['--base-url']
+
+    if '--regenerate-html' in arguments:
+        print('Regenerating HTML!')
+        for user in whitelist:
+            gen_html_archives(user, base_url, path)
+        sys.exit(1)
+
+    # Arguments after this are specific to logging in
     username = arguments['--username']
     gmail = arguments['--gmail']
 
@@ -232,11 +242,8 @@ def main():
     else:
         delay = int(arguments['--delay'])
 
-    path = arguments['<path>']
-    base_url = arguments['--base-url']
     auth_token = arguments['--auth-token']
 
-    whitelist = arguments['<whitelist>']
 
     if not os.path.isdir(path):
         print('No such directory: {0}'.format(arguments['<path>']))
@@ -264,6 +271,12 @@ def main():
 
         for u in whitelist:
             gen_feed(u, base_url, path)
+            todayDate = datetime.date.today()
+
+            # The beginning of today (midnight)
+            todayDt = datetime.datetime(todayDate.year, todayDate.month, todayDate.day, 0,0,0)
+            gen_html_page(u, todayDt, base_url, path)
+
         
         time.sleep(delay*60)
     
