@@ -27,7 +27,7 @@ from snapy import get_file_extension, Snapchat
 from snapy.utils import unzip_snap_mp4
 from zipfile import is_zipfile
 from requests.exceptions import HTTPError
-
+from jinja2 import Environment, PackageLoader
 
 def check_snaps(s, path, whitelist, base_url):
     # Download all our snaps and add items to our feed
@@ -71,6 +71,80 @@ def check_snaps(s, path, whitelist, base_url):
 
         if is_zipfile(abspath):
             unzip_snap_mp4(abspath, quiet=False)
+
+
+def gen_html_page(user, dt, base_url, path):
+    """Generate an HTML page for a given datetime and user.
+    Note that the datetime must be the exact start of the day.
+    """
+    nextDay = dt + datetime.timedelta(days=1)
+    prevDay = dt - datetime.timedelta(days=1)
+
+    startMs = (dt - datetime.datetime(1970,1,1)).total_seconds() * 1000
+    endMs = (nextDay - datetime.datetime(1970,1,1)).total_seconds() * 1000
+
+    # Look for all files matching user, date, sort latest->earlist
+    allFiles = sorted(os.listdir(path), reverse=True)
+    files = []
+
+    for f in allFiles:
+        splitFile = f.split('~')
+
+        # Match on user
+        if splitFile[0] != user:
+            continue
+
+        splitExt = os.path.splitext(splitFile[1])
+
+        # We also have _overlay.png and .zip and .xml here
+        if splitExt[1] not in ['.mp4', '.jpg']:
+            continue
+
+
+        # Check if date in range
+        snapDate = int(splitExt[0])
+
+        if snapDate > endMs:
+            continue
+
+        if snapDate < startMs:
+            continue
+
+        isVideo = (splitExt[1] == '.mp4')
+        tup = (urlparse.urljoin(base_url, f), isVideo)
+        files.append(tup)
+
+
+    # If none, return
+    if not files:
+        return
+
+    # mkdir -p path/archive/user/yyyy/MM/
+    directory = os.path.join(path, 'archive', user, str(dt.year), str(dt.month))
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+    # Get previous day and next day links
+    prevLink = urlparse.urljoin(base_url, os.path.join('archive', user, str(prevDay.year), str(prevDay.month), str(prevDay.day) + '.html'))
+    nextLink = urlparse.urljoin(base_url, os.path.join('archive', user, str(nextDay.year), str(nextDay.month), str(nextDay.day) + '.html'))
+    
+
+    # Generate from jinja template, pass media list and prev/next day
+    env = Environment(loader=PackageLoader('snapfeed', 'templates'))
+    template = env.get_template('day.html')
+    rendered = template.render(prevLink=prevLink, nextLink=nextLink, files=files, user=user)
+
+    with open(os.path.join(directory, str(dt.day) + ".html"), "wb") as fh:
+        fh.write(rendered)
+
+
+def gen_html_archives(user, base_url, path):
+    # mkdir -p path/archive/user/
+
+    # get first and last date
+
+    # for first..last date, generate pages
+    return
 
 
 def gen_feed(user, base_url, path):
