@@ -77,6 +77,7 @@ def gen_html_page(user, dt, base_url, path):
     """Generate an HTML page for a given datetime and user.
     Note that the datetime must be the exact start of the day.
     """
+
     nextDay = dt + datetime.timedelta(days=1)
     prevDay = dt - datetime.timedelta(days=1)
 
@@ -139,12 +140,47 @@ def gen_html_page(user, dt, base_url, path):
 
 
 def gen_html_archives(user, base_url, path):
-    # mkdir -p path/archive/user/
-
+    """Generate ALL html archives for a single user.
+    This should only be run once, then run gen_html_page() for the current
+    day in the main() loop.
+    """
     # get first and last date
+    files = sorted(os.listdir(path))
+    firstTs = 0
+
+    # Loop through the sorted list until we find the first timestamp
+    # orresponding to our username
+    for filename in files:
+        split = filename.split('~')
+
+        if split[0] != user:
+            continue
+        
+        if os.path.splitext(filename)[1] in ['.mp4', '.jpg']:
+            ts = int(os.path.splitext(filename.split('~')[1])[0])
+
+            if not firstTs:
+                firstTs = ts
+            else:
+                break
 
     # for first..last date, generate pages
-    return
+    todayDate = datetime.date.today()
+
+    # The beginning of today (midnight)
+    todayDt = datetime.datetime(todayDate.year, todayDate.month, todayDate.day, 0,0,0)
+
+    firstDtTs = datetime.datetime.fromtimestamp(firstTs/1000)
+
+    # Initially, the beginning of the first day in which there are story media
+    loopDt = datetime.datetime(firstDtTs.year, firstDtTs.month, firstDtTs.day, 0, 0)
+    
+    while loopDt <= todayDt:
+        date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+        loopDtStr = loopDt.strftime("%Y-%m-%d %H:%M")
+        print('{0}  Generating HTML for {1}'.format(date, loopDtStr))
+        gen_html_page(user, loopDt, base_url, path)    
+        loopDt = loopDt + datetime.timedelta(days=1)
 
 
 def gen_feed(user, base_url, path):
