@@ -1,7 +1,8 @@
 Snapfeed
 ========
 
-A utility to generate dynamic RSS feeds from Snapchat stories. 
+A utility to generate dynamic RSS feeds from Snapchat stories. Also creates 
+HTML pages containing all content from a story in a given day.
 
 Installation
 ------------
@@ -12,6 +13,7 @@ You must have the following `python2` packages installed:
 * [snapy](https://github.com/tatosaurus/snapy)
 * feedgen
 * docopt
+* jinja2
 
 Additionally, a web server is required, which is outside the scope of this
 document. I like nginx.
@@ -24,7 +26,8 @@ syntax.
 
 ```
 Usage:
-  snapfeed.py [-d <delay>] -u <username> [-p <password>] --gmail=<gmail> --gpasswd=<gpasswd> -U <base-url> -f <feed> <path> [<whitelist>...]
+  snapfeed.py [-d <delay>] -u <username> [-p <password> | -a <auth_token>] --gmail=<gmail> --gpasswd=<gpasswd> -U <base-url> <path> [<whitelist>...]
+  snapfeed.py -r -U <base-url> <path> [<whitelist>...]
 
 Options:
   -d --delay=<delay>            Delay in minutes to wait before re-downloading
@@ -34,7 +37,8 @@ Options:
      --gmail=<gmail>            Gmail address
      --gpasswd=<gpasswd>        Gmail password
   -U --base-url=<base-url>      Base url, e.g. http://localhost/snaps/
-  -f --feed=<feed>              Feed filename, e.g. rss.xml.
+  -a --auth-token=<auth_token>  Auth token from Snapchat
+  -r --regenerate-html          Regenerate HTML
 ```
 
 Note that you must provide a webserver where `path` is available at 
@@ -46,6 +50,11 @@ on. If none are specified, the feed will not be filtered at all. If one or
 more are specified, then the media file corresponding to a story will be 
 added to the feed if the username is in the whitelist. Regardless, the 
 media will be saved in the `path` directory.
+
+By default (top syntax), only the HTML for the current day is generated. Use 
+the bottom syntax to regenerate pages for every day since the earliest snapchat
+story for each user in the `whitelist`. The bottom syntax does not do anything
+other than generate HTML for existing media.
 
 
 Warning
