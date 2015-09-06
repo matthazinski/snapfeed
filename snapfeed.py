@@ -169,7 +169,7 @@ def gen_html_archives(user, base_url, path):
         return
 
     # for first..last date, generate pages
-    todayDate = datetime.date.today()
+    todayDate = datetime.datetime.utcnow()
 
     # The beginning of today (midnight)
     todayDt = datetime.datetime(todayDate.year, todayDate.month, todayDate.day, 0,0,0)
@@ -278,8 +278,10 @@ def main():
 
         for u in whitelist:
             gen_feed(u, base_url, path)
-            todayDate = datetime.date.today()
 
+            # Use UTC time for everyting because snapchat has Unix timestamps
+            todayDate = datetime.datetime.utcnow()
+            
             # The beginning of today (midnight)
             todayDt = datetime.datetime(todayDate.year, todayDate.month, todayDate.day, 0,0,0)
             gen_html_page(u, todayDt, base_url, path)
