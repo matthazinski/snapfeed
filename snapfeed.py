@@ -187,7 +187,7 @@ def gen_html_archives(user, base_url, path):
         loopDt = loopDt + datetime.timedelta(days=1)
 
 
-def gen_feed(user, base_url, path):
+def gen_feed(user, base_url, path, debug=False):
     # Create feed
     feed = FeedGenerator()
     feed.id(urlparse.urljoin(base_url, user + '.xml'))
@@ -217,7 +217,8 @@ def gen_feed(user, base_url, path):
     feed.rss_file(os.path.join(path, user + '.xml'))
     date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
 
-    print('{0}  Regenerated {1}'.format(date, urlparse.urljoin(base_url, 
+    if debug:
+        print('{0}  Regenerated {1}'.format(date, urlparse.urljoin(base_url, 
                                                                user + '.xml')))
     
 
