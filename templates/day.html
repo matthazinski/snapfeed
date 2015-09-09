@@ -4,6 +4,9 @@
     <title>{{ user }}'s Snapchat story</title>
 </head>
 <body>
+    <p><a href="{{ prevLink }}">Prev</a>    <a href="{{ nextLink }}">Next</a><br>
+
+    
     {% for f,g in files %}
         {% if g %}
             <video controls>
