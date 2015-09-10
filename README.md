@@ -1,7 +1,7 @@
 Snapfeed
 ========
 
-A utility to generate dynamic RSS feeds from Snapchat stories. Also creates 
+A utility to generate static RSS feeds from Snapchat stories. Also creates 
 HTML pages containing all content from a story in a given day.
 
 Installation
@@ -9,14 +9,14 @@ Installation
 
 You must have the following `python2` packages installed:
 
-* requests
+* requests 
 * [snapy](https://github.com/tatosaurus/snapy)
 * feedgen
 * docopt
 * jinja2
 
 Additionally, a web server is required, which is outside the scope of this
-document. I like nginx.
+document. Nginx is recommended.
 
 Usage
 -----
@@ -47,14 +47,29 @@ itself will be written within `path`.
 
 The `whitelist` parameter is used to specify zero or more usernames to filter
 on. If none are specified, the feed will not be filtered at all. If one or
-more are specified, then the media file corresponding to a story will be 
-added to the feed if the username is in the whitelist. Regardless, the 
-media will be saved in the `path` directory.
+more are specified, then each media file corresponding to a story will be 
+added to the feed `username.xml` if the username is in the whitelist. 
+Regardless, the media will be saved in the `path` directory.
 
 By default (top syntax), only the HTML for the current day is generated. Use 
 the bottom syntax to regenerate pages for every day since the earliest snapchat
 story for each user in the `whitelist`. The bottom syntax does not do anything
 other than generate HTML for existing media.
+ 
+
+TODO
+----
+
+The following features have not yet been implemented:
+
+* PNG overlays for videos containing them (only the video is placed in the
+feed). 
+* Consistent image/video dimensions in HTML pages
+* Reduced traffic feeds - generate a single item per username during each
+update linking to an HTML page with all relevant media filess. 
+* Daemonizing
+* Place items in separate directories based on username
+* Options to generate directory index to allow easy mass-downloading
 
 
 Warning
