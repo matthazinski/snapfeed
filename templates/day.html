@@ -2,6 +2,18 @@
 <html lang="en">
 <head>
     <title>{{ user }}'s Snapchat story</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
+    <script src="https://livibetter-backup.github.com/jquery-jknav/jquery.jknav.min.js"></script>
+    <style>
+        .item {
+            max-height: 700px;
+            padding-top: 20px;
+        }
+
+        a {
+            font-size: 18px;
+        }
+    </style>
 </head>
 <body>
     <p><a href="{{ prevLink }}">Prev</a>    <a href="{{ nextLink }}">Next</a><br>
@@ -9,16 +21,25 @@
     
     {% for f,g in files %}
         {% if g %}
-            <video controls>
+            <video class="item" controls>
                 <source src="{{ f }}">
             </video>
         {% else %}
-            <img src="{{ f }}">
+            <img class="item" src="{{ f }}">
         {% endif %}
         <br>
     {% endfor %}
 
-    <p><a href="{{ prevLink }}">Prev</a>    <a href="{{ nextLink }}">Next</a>
+    <p><a href="{{ prevLink }}">Prev</a> | <a href="{{ nextLink }}">Next</a>
 
+    <script>
+    $('.item').jknav();
+    $.jknav.init({
+        easing: 'linear',
+        speed: 10,
+        reevaluate: true,
+        circular: false
+    });
+    </script>
 </body>
 </html>
