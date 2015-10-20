@@ -37,6 +37,28 @@
     <p><a href="{{ prevLink }}">Prev</a> | <a href="{{ nextLink }}">Next</a>
 
     <script>
+    function clickA(innerText) {
+        var as = document.getElementsByTagName("a");
+
+        for (var i = 0; i < as.length; i++) {
+            if (as[i].innerText == innerText) {
+                as[i].click();
+            }
+        };
+    }
+
+    function pressedKey(e) {
+        var h = 72;
+        var l = 76;
+
+        if (e.keyCode == h) {
+            clickA("Prev");            
+        }
+        else if (e.keyCode == l) {
+            clickA("Next");
+        }
+    }
+
     $('.item').jknav();
     $.jknav.init({
         easing: 'linear',
@@ -44,6 +66,8 @@
         reevaluate: true,
         circular: false
     });
+
+    document.addEventListener('keyup', pressedKey, false);
     </script>
 </body>
 </html>
